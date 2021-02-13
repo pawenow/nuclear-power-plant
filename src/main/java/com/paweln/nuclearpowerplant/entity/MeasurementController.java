@@ -15,19 +15,33 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Controller
+@RequestMapping("/measurements")
 public class MeasurementController {
 
-    @Autowired
-    MeasurementRepository measurementRepository;
+
+    private final MeasurementRepository measurementRepository;
+    private final MeasurementService measurementService;
+    private final MeasurementHandler measurementHandler;
+
+    private static final String GOOD = "good";
+    private static final String BAD = "bad";
 
     @Autowired
-    MeasurementDTO measurementDTO;
+    public MeasurementController(MeasurementRepository measurementRepository, MeasurementService measurementService, MeasurementHandler measurementHandler) {
+        this.measurementRepository = measurementRepository;
+        this.measurementService = measurementService;
+        this.measurementHandler = measurementHandler;
+    }
 
-    @GetMapping("/getLastValue")
-    public ResponseEntity<MeasurementDTO> getLastValue(){
-        Measurement lastValue = measurementRepository.findTopByOrderByIdDesc();
-        measurementDTO.init(lastValue);
-        return new ResponseEntity<>(measurementDTO, HttpStatus.OK);
+    @GetMapping("")
+    public ResponseEntity getLastValue(){
+        Optional<Measurement> lastValue = measurementService.getLastValue();
+        if(lastValue.isPresent()){
+            return new ResponseEntity<>(measurementHandler.initModel(lastValue.get()), HttpStatus.OK);
+        }else{
+            return ResponseEntity.notFound().build();
+        }
+
     }
 
     @GetMapping("/getAvgValueBetweenTwoDates")
@@ -52,16 +66,17 @@ public class MeasurementController {
                     .body("Cannot Parse To LocalDateTime, " +
                             "fill date in format YYYY-MM-DD HH:MM:SS");
         }
-        measurementRepository.findObjectsBetweenTwoDates(startDate, endDate).stream().forEach(System.out::println);
-            OptionalDouble average = measurementRepository.findObjectsBetweenTwoDates(startDate, endDate)
+        List<Measurement> objectBetweenTwoDates = measurementService.findObjectBetweenTwoDates(startDate, endDate);
+        OptionalDouble average = objectBetweenTwoDates
                 .stream()
-                .filter(a-> "good".equalsIgnoreCase(a.getQuality()) || includeBadValue&&"bad".equalsIgnoreCase(a.getQuality()))
+                .filter(a-> GOOD.equalsIgnoreCase(a.getQuality()) || includeBadValue&&BAD.equalsIgnoreCase(a.getQuality()))
                 .mapToDouble(Measurement::getValue)
                 .average();
+
         if(average.isPresent()){
-            return new ResponseEntity<>(average.getAsDouble(),HttpStatus.OK);
+            return new ResponseEntity<>((float)average.getAsDouble(),HttpStatus.OK);
         }else{
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return ResponseEntity.notFound().build();
         }
 
 
@@ -84,10 +99,10 @@ public class MeasurementController {
                     .body("Cannot Parse To LocalDateTime, " +
                             "fill date in format YYYY-MM-DD HH:MM:SS");
         }
-
-        List<Float> collect = measurementRepository.findObjectsBetweenTwoDates(startDate, endDate)
+        List<Measurement> objectBetweenTwoDates = measurementService.findObjectBetweenTwoDates(startDate, endDate);
+        List<Float> collect = objectBetweenTwoDates
                 .stream()
-                .filter(a -> "good".equalsIgnoreCase(a.getQuality()))
+                .filter(a -> GOOD.equalsIgnoreCase(a.getQuality()))
                 .map(Measurement::getValue)
                 .collect(Collectors.toList());
 
@@ -118,27 +133,22 @@ public class MeasurementController {
                     .body("Cannot Parse To LocalDateTime, " +
                             "fill date in format YYYY-MM-DD HH:MM:SS");
         }
-
-
-        List<Double> interpolatedData = new ArrayList<>();
-        Double intervalTimeInMilis = Double.valueOf(Duration.ofMinutes(Long.valueOf(intervalTime)).toMillis());
-        Function<LocalDateTime,Double> convertToMilis = a-> {
-            return (double) (a.atZone(ZoneId.of("America/Los_Angeles")).toInstant().toEpochMilli());
-        };
+        if(startDate.isAfter(endDate)){
+            return ResponseEntity
+                    .badRequest()
+                    .body("Start date is after end date.");
+        }
 
         List<Measurement> collect = measurementRepository.findObjectsBetweenTwoDates(startDate, endDate).stream()
                 .sorted(Comparator.comparing(Measurement::getTime, Comparator.nullsLast(Comparator.naturalOrder()))).collect(Collectors.toList());
 
+        List<Double> interpolatedData = measurementHandler.getInterpolatedData(collect, intervalTime);
 
-        double[] time = collect.stream().map(Measurement::getTime).map(convertToMilis).mapToDouble(Double::doubleValue).toArray();
-        double[] values = collect.stream().map(a->a.getValue().doubleValue()).mapToDouble(Double::doubleValue).toArray();
-
-        for(double i = time[0];i<time[time.length-1];i=i+intervalTimeInMilis){
-            interpolatedData.add(PolynomialFunctionLagrangeForm.evaluate(time,values,i));
+        if(interpolatedData!=null && interpolatedData.size()!=0){
+            return new ResponseEntity<>(interpolatedData,HttpStatus.OK);
+        }else{
+            return ResponseEntity.notFound().build();
         }
-        return new ResponseEntity<>(interpolatedData,HttpStatus.OK);
-
-
     }
 
 

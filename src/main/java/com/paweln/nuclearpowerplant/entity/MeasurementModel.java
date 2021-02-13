@@ -4,19 +4,13 @@ package com.paweln.nuclearpowerplant.entity;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-@Component
-public class MeasurementDTO {
+
+public class MeasurementModel {
     private Float value;
     private LocalDateTime time;
     private String quality;
 
-    public MeasurementDTO() {
-    }
-
-    public void init(Measurement measurement){
-        this.value = measurement.getValue();
-        this.time = measurement.getTime();
-        this.quality = measurement.getQuality();
+    public MeasurementModel() {
     }
 
     public Float getValue() {
@@ -43,7 +37,7 @@ public class MeasurementDTO {
         this.quality = quality;
     }
 
-    public MeasurementDTO(Float value, LocalDateTime time, String quality) {
+    public MeasurementModel(Float value, LocalDateTime time, String quality) {
         this.value = value;
         this.time = time;
         this.quality = quality;
