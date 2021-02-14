@@ -71,7 +71,7 @@ public class MeasurementHandler {
         }catch(DateTimeParseException e){
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Cannot Parse To LocalDateTime, " +
-                    "fill date in format YYYY-MM-DD HH:MM:SS");
+                    "fill date in format YYYY-MM-DDTHH:MM:SS");
         }
 
         if(startDate.isAfter(endDate)){
