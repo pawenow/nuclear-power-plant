@@ -1,4 +1,4 @@
-package com.paweln.nuclearpowerplant.entity;
+package com.paweln.nuclearpowerplant.measurement;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,7 +1,5 @@
-package com.paweln.nuclearpowerplant.entity;
+package com.paweln.nuclearpowerplant.measurement.model;
 
-
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
